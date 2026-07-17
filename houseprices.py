@@ -71,3 +71,32 @@ for col in categorical_columns:
 category_analysis["Categories"] = unique_values
 category_analysis["Number"] = unique_counts
 category_analysis
+
+#Lets make one hot encodings via pd.get_dummies() function
+data_b = pd.get_dummies(data_b)
+test_b = pd.get_dummies(test_b)
+
+#Skewing all numeric features
+skewed_feats = data_b[numeric_columns].apply(lambda x : skew(x.dropna())).sort_values(ascending = False)
+print("\nSkew in numerical features: \n")
+skewness = pd.DataFrame({'Skew' : skewed_feats})
+skewness.head(10)
+
+data_b_skewed = data_b.copy()
+test_b_skewed = test_b.copy()
+skewness = skewness[abs(skewness) > 1]
+print("There are {} skewed numerical features to Log1p transform".format(skewness.shape[0]))
+
+skewed_features = skewness.index
+for feat in skewed_features:
+    data_b_skewed[feat] = np.log1p(data_b_skewed[feat])
+    test_b_skewed[feat] = np.log1p(test_b_skewed[feat])
+
+#Also we need to convert target values
+y_log = np.log1p(y)
+
+print("\nOnly in Train: "+ str(list(set(data_b_skewed.columns) - set(test_b_skewed.columns))))
+print("Only in Test: "+ str(list(set(test_b_skewed.columns) - set(data_b_skewed.columns))))
+
+only_in_train = list(set(data_b_skewed.columns) - set(test_b_skewed.columns))
+data_b_skewed = data_b_skewed.drop(only_in_train, axis='columns')
