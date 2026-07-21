@@ -101,24 +101,39 @@ print("Only in Test: "+ str(list(set(test_b_skewed.columns) - set(data_b_skewed.
 only_in_train = list(set(data_b_skewed.columns) - set(test_b_skewed.columns))
 data_b_skewed = data_b_skewed.drop(only_in_train, axis='columns')
 
-#Combine 4 models (2 tree-based AND 2 linear Models) 
-def make_submission(X_train, y_train, X_test):    
-    sub_df = pd.read_csv('/kaggle/input/house-prices-advanced-regression-techniques/sample_submission.csv', index_col = "Id")
-    
-    ridge = Ridge(alpha = 1, random_state=0).fit(X_train,y_train)
-    ridge_preds_log=ridge.predict(X_test)
-    
-    lasso = Lasso(alpha = 0.0001,random_state=0).fit(X_train,y_train)
-    lasso_preds_log=lasso.predict(X_test)
+#Now we try to simulate each model by using cross validation
+def run_cvs(X,y):
+    baseline = ElasticNet(random_state = 0, max_iter = 10000000, alpha = 0.0003)
+    baseline_score = cross_val_score(baseline, X, y, cv = 10)
+    print("ENet avg: ", np.mean(baseline_score))
 
-    catB = CatBoostRegressor(random_state=0,verbose=0).fit(X_train,y_train)
-    catB_preds_log=catB.predict(X_test)
+    baseline = Ridge(alpha = 1, random_state=0)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("Ridge avg:",np.mean(baseline_score))   
+    
+    baseline = Lasso(alpha = 0.0001,random_state=0)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("Lasso avg:",np.mean(baseline_score))
+    
+    baseline = KernelRidge(alpha=0.1)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("KRR avg:",np.mean(baseline_score))
 
-    xgb = xg.XGBRegressor(learning_rate=0.01,n_estimators=2000, subsample=0.7,colsample_bytree=0.7,random_state=0).fit(X_train,y_train)
-    xgb_preds_log=xgb.predict(X_test)
+    baseline = lgb.LGBMRegressor(learning_rate=0.01,num_leaves=4,n_estimators=2000, random_state=0)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("LGBM avg:",np.mean(baseline_score))
+
+    baseline = xg.XGBRegressor(learning_rate=0.01,n_estimators=2000, subsample=0.7,colsample_bytree=0.7,random_state=0)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("XGB avg:",np.mean(baseline_score))
     
-    catb_xbr_lasso_ridge_mean_preds_log=(catB_preds_log+ridge_preds_log+lasso_preds_log+xgb_preds_log)/4
-    sub_df['SalePrice'] = np.exp(catb_xbr_lasso_ridge_mean_preds_log)-1
-    sub_df.to_csv("submission.csv")
+    baseline = CatBoostRegressor(random_state=0,verbose=0)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("CatB avg:",np.mean(baseline_score))
+
+    baseline = GradientBoostingRegressor(n_estimators=1000, learning_rate=0.02,max_depth=4, max_features='sqrt', min_samples_leaf=15, 
+               min_samples_split=50,loss='huber', random_state = 0)
+    baseline_score = cross_val_score(baseline, X, y, cv=10)
+    print("GBR avg:",np.mean(baseline_score))
     
-make_submission(data_b_skewed,y_log,test_b_skewed)   
+run_cvs(data_b_skewed, y_log)
