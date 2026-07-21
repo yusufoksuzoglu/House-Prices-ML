@@ -100,3 +100,25 @@ print("Only in Test: "+ str(list(set(test_b_skewed.columns) - set(data_b_skewed.
 
 only_in_train = list(set(data_b_skewed.columns) - set(test_b_skewed.columns))
 data_b_skewed = data_b_skewed.drop(only_in_train, axis='columns')
+
+#Combine 4 models (2 tree-based AND 2 linear Models) 
+def make_submission(X_train, y_train, X_test):    
+    sub_df = pd.read_csv('/kaggle/input/house-prices-advanced-regression-techniques/sample_submission.csv', index_col = "Id")
+    
+    ridge = Ridge(alpha = 1, random_state=0).fit(X_train,y_train)
+    ridge_preds_log=ridge.predict(X_test)
+    
+    lasso = Lasso(alpha = 0.0001,random_state=0).fit(X_train,y_train)
+    lasso_preds_log=lasso.predict(X_test)
+
+    catB = CatBoostRegressor(random_state=0,verbose=0).fit(X_train,y_train)
+    catB_preds_log=catB.predict(X_test)
+
+    xgb = xg.XGBRegressor(learning_rate=0.01,n_estimators=2000, subsample=0.7,colsample_bytree=0.7,random_state=0).fit(X_train,y_train)
+    xgb_preds_log=xgb.predict(X_test)
+    
+    catb_xbr_lasso_ridge_mean_preds_log=(catB_preds_log+ridge_preds_log+lasso_preds_log+xgb_preds_log)/4
+    sub_df['SalePrice'] = np.exp(catb_xbr_lasso_ridge_mean_preds_log)-1
+    sub_df.to_csv("submission.csv")
+    
+make_submission(data_b_skewed,y_log,test_b_skewed)   
